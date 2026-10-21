@@ -60,7 +60,14 @@ class LinearClassifier(object):
             # Подсказка: для генерации индексов используйте np.random.choice.       #
             # Выборка с возвращением работает быстрее, чем без возвращения.         #
             #########################################################################
+            batch_indices = np.random.choice(
+               num_train,
+               size=batch_size,
+               replace=True
+            )
 
+            X_batch = X[batch_indices]
+            y_batch = y[batch_indices]
 
             # вычисляем значение функции потерь и градиент
             loss, grad = self.loss(X_batch, y_batch, reg)
@@ -71,7 +78,7 @@ class LinearClassifier(object):
             # TODO:                                                                 #
             # Обновите веса, используя градиент и скорость обучения.                #
             #########################################################################
-
+            self.W -= learning_rate * grad
 
             if verbose and it % 100 == 0:
                 print("итерация %d / %d: потери %f" % (it, num_iters, loss))
@@ -97,6 +104,8 @@ class LinearClassifier(object):
         # TODO:                                                                   #
         # Реализуйте этот метод. Сохраните предсказанные метки в y_pred.          #
         ###########################################################################
+        scores = X.dot(self.W)
+        y_pred = np.argmax(scores, axis=1)
 
         return y_pred
 

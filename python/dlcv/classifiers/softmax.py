@@ -37,9 +37,19 @@ def softmax_loss_naive(W, X, y, reg):
 
         loss -= logp[y[i]]  # потери — это отрицательный логарифм вероятности
 
+        # Градиент по весам
+        for j in range(num_classes):
+            if j == y[i]:
+                dW[:, j] += (p[j] - 1) * X[i]
+            else:
+                dW[:, j] += p[j] * X[i]
+
 
     # усредняем потери по примерам и добавляем регуляризацию
     loss = loss / num_train + reg * np.sum(W * W)
+    
+    # Средний градиент и градиент регуляризации
+    dW = dW / num_train + 2 * reg * W
 
     #############################################################################
     # TODO:                                                                     #
@@ -70,7 +80,24 @@ def softmax_loss_vectorized(W, X, y, reg):
     # Реализуйте векторизованную версию функции потерь softmax и сохраните      #
     # результат в loss.                                                         #
     #############################################################################
+    num_train = X.shape[0]
 
+    # Оценки всех классов для всех объектов
+    scores = X.dot(W)
+
+    # Численная устойчивость: вычитаем максимум из каждой строки
+    scores -= np.max(scores, axis=1, keepdims=True)
+
+    # Преобразуем оценки в вероятности
+    exp_scores = np.exp(scores)
+    probs = exp_scores / np.sum(exp_scores, axis=1, keepdims=True)
+
+    # Вероятности правильных классов
+    correct_class_probs = probs[np.arange(num_train), y]
+
+    # Средняя потеря и регуляризация
+    loss = np.mean(-np.log(correct_class_probs))
+    loss += reg * np.sum(W * W)
 
     #############################################################################
     # TODO:                                                                     #
@@ -81,6 +108,11 @@ def softmax_loss_vectorized(W, X, y, reg):
     # проще переиспользовать промежуточные значения, полученные при             #
     # вычислении потерь.                                                        #
     #############################################################################
+    dscores = probs.copy()
+    dscores[np.arange(num_train), y] -= 1
+    dscores /= num_train
 
-
+    dW = X.T.dot(dscores)
+    dW += 2 * reg * W
+    
     return loss, dW

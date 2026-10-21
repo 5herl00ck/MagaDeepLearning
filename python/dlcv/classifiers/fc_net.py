@@ -52,7 +52,17 @@ class TwoLayerNet(object):
         # первого слоя — под ключами 'W1' и 'b1', веса и смещения второго          #
         # слоя — под ключами 'W2' и 'b2'.                                          #
         ############################################################################
+        self.params["W1"] = weight_scale * np.random.randn(
+            input_dim,
+            hidden_dim
+        )
+        self.params["b1"] = np.zeros(hidden_dim)
 
+        self.params["W2"] = weight_scale * np.random.randn(
+            hidden_dim,
+            num_classes
+        )
+        self.params["b2"] = np.zeros(num_classes)
         ############################################################################
         #                            КОНЕЦ ВАШЕГО КОДА                             #
         ############################################################################
@@ -82,7 +92,13 @@ class TwoLayerNet(object):
         # TODO: Реализуйте прямой проход двухслойной сети: вычислите оценки        #
         # классов для X и сохраните их в переменной scores.                        #
         ############################################################################
+        W1 = self.params["W1"]
+        b1 = self.params["b1"]
+        W2 = self.params["W2"]
+        b2 = self.params["b2"]
 
+        hidden, cache1 = affine_relu_forward(X, W1, b1)
+        scores, cache2 = affine_forward(hidden, W2, b2)
         ############################################################################
         #                            КОНЕЦ ВАШЕГО КОДА                             #
         ############################################################################
@@ -103,7 +119,30 @@ class TwoLayerNet(object):
         # проверки в ноутбуке, L2-регуляризация должна включать множитель 0.5      #
         # (он упрощает выражение для градиента).                                   #
         ############################################################################
+        # Потери Softmax и градиент по scores
+        data_loss, dscores = softmax_loss(scores, y)
 
+        # Добавляем L2-регуляризацию
+        reg_loss = 0.5 * self.reg * (
+            np.sum(W1 * W1) + np.sum(W2 * W2)
+        )
+        loss = data_loss + reg_loss
+
+        # Обратный проход через второй аффинный слой
+        dhidden, dW2, db2 = affine_backward(dscores, cache2)
+
+        # Обратный проход через первый составной слой affine + ReLU
+        dX, dW1, db1 = affine_relu_backward(dhidden, cache1)
+
+        # Добавляем градиенты регуляризации
+        dW1 += self.reg * W1
+        dW2 += self.reg * W2
+
+        # Сохраняем градиенты
+        grads["W1"] = dW1
+        grads["b1"] = db1
+        grads["W2"] = dW2
+        grads["b2"] = db2
         ############################################################################
         #                            КОНЕЦ ВАШЕГО КОДА                             #
         ############################################################################
@@ -179,7 +218,14 @@ class FullyConnectedNet(object):
         # распределения с центром в 0 и стандартным отклонением weight_scale.      #
         # Смещения инициализируйте нулями.                                         #
         ############################################################################
+        layer_dims = [input_dim] + hidden_dims + [num_classes]
 
+        for i in range(self.num_layers):
+            self.params[f"W{i + 1}"] = (
+                weight_scale
+                * np.random.randn(layer_dims[i], layer_dims[i + 1])
+            )
+            self.params[f"b{i + 1}"] = np.zeros(layer_dims[i + 1])
         ############################################################################
         #                            КОНЕЦ ВАШЕГО КОДА                             #
         ############################################################################
@@ -215,7 +261,24 @@ class FullyConnectedNet(object):
         # TODO: Реализуйте прямой проход полносвязной сети: вычислите оценки       #
         # классов для X и сохраните их в переменной scores.                        #
         ############################################################################
+        caches = {}
+        out = X
 
+        for i in range(1, self.num_layers):
+            W = self.params[f"W{i}"]
+            b = self.params[f"b{i}"]
+
+            out, caches[i] = affine_relu_forward(out, W, b)
+
+        last_layer = self.num_layers
+        W_last = self.params[f"W{last_layer}"]
+        b_last = self.params[f"b{last_layer}"]
+
+        scores, caches[last_layer] = affine_forward(
+            out,
+            W_last,
+            b_last
+        )
         ############################################################################
         #                            КОНЕЦ ВАШЕГО КОДА                             #
         ############################################################################
@@ -236,7 +299,34 @@ class FullyConnectedNet(object):
         # проверки в ноутбуке, L2-регуляризация должна включать множитель 0.5      #
         # (он упрощает выражение для градиента).                                   #
         ############################################################################
+        loss, dout = softmax_loss(scores, y)
 
+        for i in range(1, self.num_layers + 1):
+            W = self.params[f"W{i}"]
+            loss += 0.5 * self.reg * np.sum(W * W)
+
+        last_layer = self.num_layers
+
+        dout, dW, db = affine_backward(
+            dout,
+            caches[last_layer]
+        )
+
+        grads[f"W{last_layer}"] = (
+            dW + self.reg * self.params[f"W{last_layer}"]
+        )
+        grads[f"b{last_layer}"] = db
+
+        for i in range(self.num_layers - 1, 0, -1):
+            dout, dW, db = affine_relu_backward(
+                dout,
+                caches[i]
+            )
+
+            grads[f"W{i}"] = (
+                dW + self.reg * self.params[f"W{i}"]
+            )
+            grads[f"b{i}"] = db
         ############################################################################
         #                            КОНЕЦ ВАШЕГО КОДА                             #
         ############################################################################

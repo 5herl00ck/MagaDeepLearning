@@ -65,6 +65,7 @@ class KNearestNeighbor(object):
         dists = np.zeros((num_test, num_train))
         for i in range(num_test):
             for j in range(num_train):
+                dists[i, j] = np.sqrt(np.sum((X[i] - self.X_train[j]) ** 2))
                 #####################################################################
                 # TODO:                                                             #
                 # Вычислите L2-расстояние между i-й тестовой и j-й обучающей        #
@@ -92,6 +93,7 @@ class KNearestNeighbor(object):
             # обучающими точками и сохраните результат в dists[i, :].             #
             # Не используйте np.linalg.norm().                                    #
             #######################################################################
+            dists[i, :] = np.sqrt(np.sum((self.X_train - X[i]) ** 2, axis=1))
             pass
         return dists
 
@@ -117,6 +119,8 @@ class KNearestNeighbor(object):
         # ПОДСКАЗКА: попробуйте выразить L2-расстояние через матричное          #
         #            умножение и два сложения с транслированием (broadcasting). #
         #########################################################################
+        squared_dists = (np.sum(X ** 2, axis=1, keepdims=True) + np.sum(self.X_train ** 2, axis=1) - 2 * X.dot(self.X_train.T))
+        dists = np.sqrt(np.maximum(squared_dists, 0))
 
         return dists
 
@@ -146,7 +150,8 @@ class KNearestNeighbor(object):
             # Сохраните эти метки в closest_y.                                      #
             # Подсказка: посмотрите описание функции numpy.argsort.                 #
             #########################################################################
-
+            nearest_ind = np.argsort(dists[i], kind="stable")
+            closest_y = self.y_train[nearest_ind][:k]
 
             #########################################################################
             # TODO:                                                                 #
@@ -154,6 +159,7 @@ class KNearestNeighbor(object):
             # самую частую метку в списке closest_y и сохранить её в y_pred[i].     #
             # При равенстве голосов выбирайте меньшую метку.                        #
             #########################################################################
-
+            counts = np.bincount(closest_y)
+            y_pred[i] = np.argmax(counts)
 
         return y_pred
